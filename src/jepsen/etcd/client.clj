@@ -6,8 +6,8 @@
             [jepsen.codec :as codec]
             [jepsen.etcd [support :as etcd.support]]
             [jepsen.etcd.client [etcdctl :as etcdctl]
-                                [support :as s]
-                                [txn :as t]]
+             [support :as s]
+             [txn :as t]]
             [jepsen.util :refer [coll]]
             [potemkin]
             [slingshot.slingshot :refer [try+ throw+]])
@@ -102,6 +102,8 @@
 
 
 ; Coercing responses to Clojure data
+
+
 (defprotocol ToClj
   (->clj [o]))
 
@@ -201,11 +203,11 @@
 
   WatchResponseWithError (->clj [r]
                            {:response  (->clj (.getWatchResponse r))
-                            :exception (.getException r)})
-  )
+                            :exception (.getException r)}))
 
 
 ; Opening and closing clients
+
 
 (defn ^Client client
   "Builds a client for the given node. If given a test map, chooses what kind
@@ -221,8 +223,7 @@
      :jetcd   (client node)
      :etcdctl (etcdctl/client test node))))
 
-(defrecord EtcdCtl []
-  )
+(defrecord EtcdCtl [])
 
 (defn close!
   "Closes any client. Ignores ClosedClientExceptions."
@@ -237,8 +238,8 @@
   client."
   [[client-sym node] & body]
   `(let [~client-sym (client ~node)]
-    (try ~@body
-         (finally (close! ~client-sym)))))
+     (try ~@body
+          (finally (close! ~client-sym)))))
 
 ; Futures
 (defn await
@@ -265,8 +266,8 @@
   Let's catch those and unwrap them to throw the original exception."
   [& body]
   `(try ~@body
-       (catch java.util.concurrent.ExecutionException e#
-         (throw (original-cause e#)))))
+        (catch java.util.concurrent.ExecutionException e#
+          (throw (original-cause e#)))))
 
 (defn re-find+
   "Like re-find, but returns nil for nil strings instead of throwing. Jetcd
@@ -292,65 +293,65 @@
 
          (catch StatusRuntimeException e#
            (throw+
-             (let [status# (.getStatus e#)
-                   desc#   (.getDescription status#)]
+            (let [status# (.getStatus e#)
+                  desc#   (.getDescription status#)]
                ; lmao, can't use a case statement here for ~reasons~
-               (condp = (.getCode status#)
-                 Status$Code/UNAVAILABLE
-                 {:definite? false, :type :unavailable, :description desc#}
+              (condp = (.getCode status#)
+                Status$Code/UNAVAILABLE
+                {:definite? false, :type :unavailable, :description desc#}
 
-                 Status$Code/NOT_FOUND
-                 {:definite? true, :type :not-found, :description desc#}
+                Status$Code/NOT_FOUND
+                {:definite? true, :type :not-found, :description desc#}
 
-                 Status$Code/INVALID_ARGUMENT
-                 (condp re-find+ desc#
-                   #"duplicate key"
-                   {:definite? true, :type :duplicate-key, :description desc#}
-                   e#)
+                Status$Code/INVALID_ARGUMENT
+                (condp re-find+ desc#
+                  #"duplicate key"
+                  {:definite? true, :type :duplicate-key, :description desc#}
+                  e#)
 
-                 Status$Code/OUT_OF_RANGE
-                 (condp re-find+ desc#
-                   #"revision has been compacted"
-                   {:definite? true, :type :revision-compacted, :description desc#}
-                   e#)
+                Status$Code/OUT_OF_RANGE
+                (condp re-find+ desc#
+                  #"revision has been compacted"
+                  {:definite? true, :type :revision-compacted, :description desc#}
+                  e#)
 
-                 Status$Code/UNKNOWN
-                 (condp re-find+ desc#
-                   #"leader changed"
-                   {:definite? false, :type :leader-changed}
+                Status$Code/UNKNOWN
+                (condp re-find+ desc#
+                  #"leader changed"
+                  {:definite? false, :type :leader-changed}
 
-                   #"raft: stopped"
-                   {:definite? true, :type :raft-stopped}
+                  #"raft: stopped"
+                  {:definite? true, :type :raft-stopped}
 
-                   #"mutex: session is expired"
-                   {:definite? false, :type :mutex-session-expired}
+                  #"mutex: session is expired"
+                  {:definite? false, :type :mutex-session-expired}
 
-                   #"etcdserver: too many requests"
-                   {:definite? true, :type, :etcdserver-too-many-requests}
+                  #"etcdserver: too many requests"
+                  {:definite? true, :type, :etcdserver-too-many-requests}
 
-                   (do (info "Unknown code=UNKNOWN description" (pr-str desc#))
-                       e#))
+                  (do (info "Unknown code=UNKNOWN description" (pr-str desc#))
+                      e#))
 
                  ; Fall back to regular expressions on status messages
-                 (do (info "Unknown error status code" (.getCode status#)
-                           "-" status# "-" e#)
-                     (condp re-find+ desc#
-                       e#))))))
+                (do (info "Unknown error status code" (.getCode status#)
+                          "-" status# "-" e#)
+                    (condp re-find+ desc#
+                      e#))))))
 
          (catch EtcdException e#
            (throw+
-             (condp re-find+ (.getMessage e#)
+            (condp re-find+ (.getMessage e#)
                ; what even is this???
-               #"Network closed for unknown reason"
-               {:definite? false, :type :network-closed-unknown-reason}
+              #"Network closed for unknown reason"
+              {:definite? false, :type :network-closed-unknown-reason}
 
-               #"io exception"
-               {:definite? false, :type :io-exception}
+              #"io exception"
+              {:definite? false, :type :io-exception}
 
-               #"unhealthy cluster"
-               {:definite? true, :type :unhealthy-cluster}
+              #"unhealthy cluster"
+              {:definite? true, :type :unhealthy-cluster}
 
-               e#)))
+              e#)))
 
          (catch java.net.ConnectException e#
            (throw+ {:definite?   true
@@ -359,24 +360,24 @@
 
          (catch java.io.IOException e#
            (throw+
-             (condp re-find+ (.getMessage e#)
-               #"Connection reset by peer"
-               {:definite? false, :type :connection-reset}
+            (condp re-find+ (.getMessage e#)
+              #"Connection reset by peer"
+              {:definite? false, :type :connection-reset}
 
-               e#)))
+              e#)))
 
          (catch java.lang.IllegalStateException e#
            (throw+
-             (condp re-find+ (.getMessage e#)
+            (condp re-find+ (.getMessage e#)
                ; Oooh, this one's rare
-               #"call already half-closed"
-               {:definite? false, :type :call-already-half-closed}
+              #"call already half-closed"
+              {:definite? false, :type :call-already-half-closed}
 
                ; Pretty sure this one's a bug in jetcd
-               #"Stream is already completed"
-               {:definite? false, :type :stream-already-completed}
+              #"Stream is already completed"
+              {:definite? false, :type :stream-already-completed}
 
-               e#)))))
+              e#)))))
 
 (defn client-error?
   "Returns true if this is a client error we know how to interpret. Useful as a
@@ -652,7 +653,7 @@
 (defn await-node-ready
   "Blocks until this node is responding to queries."
   [client]
-  (or (try+ (remap-errors (-> client cluster-client .listMember (.get))
+  (or (try+ (remap-errors (-> client kv-client (.get (->bytes "foo") (get-options {})))
                           true)
             (catch client-error? e
               (warn e "Caught waiting for node to become ready")
@@ -721,30 +722,30 @@
                                       put-option-with-prev-kv)))))
 
 (extend-protocol s/Client Client
-  (txn! [c test t f]
+                 (txn! [c test t f]
     ; (info :test test :t t :f f)
-    (let [res (-> (.. (kv-client c)
-                      (txn)
-                      (If   (->> test (map txn->java) (into-array Cmp)))
-                      (Then (->> t    (map txn->java) (into-array Op)))
-                      (Else (->> f    (map txn->java) (into-array Op)))
-                      (commit))
-                  await
-                  ->clj)
+                   (let [res (-> (.. (kv-client c)
+                                     (txn)
+                                     (If   (->> test (map txn->java) (into-array Cmp)))
+                                     (Then (->> t    (map txn->java) (into-array Op)))
+                                     (Else (->> f    (map txn->java) (into-array Op)))
+                                     (commit))
+                                 await
+                                 ->clj)
           ; Zip together get/put responses into a single sequence
-          results (loop [rs   (transient [])
-                         ops  (seq (if (:succeeded? res) t f))
-                         gets (:gets res)
-                         puts (:puts res)]
-                    (if ops
-                      (case (first (first ops))
-                        :put (recur (conj! rs (first puts))
-                                    (next ops)
-                                    gets
-                                    (next puts))
-                        :get (recur (conj! rs (first gets))
-                                    (next ops)
-                                    (next gets)
-                                    puts))
-                      (persistent! rs)))]
-      (assoc res :results results))))
+                         results (loop [rs   (transient [])
+                                        ops  (seq (if (:succeeded? res) t f))
+                                        gets (:gets res)
+                                        puts (:puts res)]
+                                   (if ops
+                                     (case (first (first ops))
+                                       :put (recur (conj! rs (first puts))
+                                                   (next ops)
+                                                   gets
+                                                   (next puts))
+                                       :get (recur (conj! rs (first gets))
+                                                   (next ops)
+                                                   (next gets)
+                                                   puts))
+                                     (persistent! rs)))]
+                     (assoc res :results results))))

@@ -4,33 +4,35 @@
             [clojure.string :as str]
             [dom-top.core :refer [real-pmap]]
             [jepsen [control :as c]
-                    [core :as jepsen]
-                    [db :as db]
-                    [lazyfs :as lazyfs]
-                    [util :as util :refer [meh
-                                           random-nonempty-subset]]]
+             [core :as jepsen]
+             [db :as db]
+             [lazyfs :as lazyfs]
+             [util :as util :refer [meh
+                                    random-nonempty-subset]]]
             [jepsen.control [net :as cn]
-                            [util :as cu]]
+             [util :as cu]]
             [jepsen.os.debian :as debian]
             [jepsen.etcd [client :as client]
-                         [support :as s]]
+             [support :as s]]
             [slingshot.slingshot :refer [throw+ try+]]))
 
+(def xline-download-url "http://192.168.122.1:5000/") ; TODO: Replace this development URL to the repo asserts one
+(def storage-engine "rocksdb")
 (def dir s/dir)
-(def binary "etcd")
-(def logfile (str dir "/etcd.log"))
-(def pidfile (str dir "/etcd.pid"))
+(def binary "xline")
+(def logfile (str dir "/xline.log"))
+(def pidfile (str dir "/xline.pid"))
 
 (defn data-dir
   "Where does this node store its data on disk?"
   [node]
-  (str dir "/" node ".etcd"))
+  (str dir "/" node ".xline"))
 
 (defn wipe!
   "Wipes data files on the current node."
   [test node]
   (c/su
-    (c/exec :rm :-rf (str dir "/" node ".etcd")))
+   (c/exec :rm :-rf (str dir "/" node ".xline")))
   ; We don't want these files coming back when lazyfs loses unsynced writes
   (when (:lazyfs test)
     (-> test :db :lazyfs lazyfs/checkpoint!)))
@@ -43,9 +45,9 @@
   (let [rs (->> (:nodes test)
                 (real-pmap (fn [node]
                              (try+
-                               (client/remap-errors
-                                 (client/with-client [c node] (f node c)))
-                               (catch client/client-error? e nil))))
+                              (client/remap-errors
+                               (client/with-client [c node] (f node c)))
+                              (catch client/client-error? e nil))))
                 (remove nil?))]
     (if (seq rs)
       (last (sort-by (comp :raft-term :header) rs))
@@ -70,37 +72,25 @@
        (str/join ",")))
 
 (defn start!
-  "Starts etcd on the given node. Options:
+  "Starts Xline on the given node. Options:
 
     :initial-cluster-state    Either :new or :existing
     :nodes                    A set of nodes that will comprise the cluster."
   [test node opts]
   (c/su
-    (cu/start-daemon!
-      {:logfile logfile
-       :pidfile pidfile
-       :chdir   dir}
-      binary
-      :--enable-v2
-      :--log-outputs                  :stderr
-      :--logger                       :zap
-      :--name                         node
-      :--listen-peer-urls             (s/peer-url   node)
-      :--listen-client-urls           (s/client-url node)
-      :--advertise-client-urls        (s/client-url node)
-      :--initial-cluster-state        (:initial-cluster-state opts
-                                                              :existing)
-      :--initial-advertise-peer-urls  (s/peer-url node)
-      :--initial-cluster              (initial-cluster (:nodes opts))
-      :--snapshot-count               (:snapshot-count test)
-      (when (:unsafe-no-fsync test) :--unsafe-no-fsync)
-      (when (:corrupt-check test)
-        [:--experimental-initial-corrupt-check
-         :--experimental-corrupt-check-time    "1m"])
-      )))
+   (cu/start-daemon!
+    {:logfile logfile
+     :pidfile pidfile
+     :chdir   dir
+     :env {:RUST_LOG "debug"}}
+    binary
+    :--name node
+    :--storage-engine storage-engine
+    :--data-dir data-dir
+    :--members (initial-cluster (:nodes opts)))))
 
 (defn kill!
-  "Kills etcd."
+  "Kills Xline."
   []
   (c/su (cu/stop-daemon! binary pidfile)))
 
@@ -144,8 +134,8 @@
 
       ; Tell the cluster the new node is a part of it
       (client/remap-errors
-        (client/with-client [c (rand-nth (vec @(:members test)))]
-          (client/add-member! c new-node)))
+       (client/with-client [c (rand-nth (vec @(:members test)))]
+         (client/add-member! c new-node)))
 
       ; Update the test map to include the new node
       (swap! (:members test) conj new-node)
@@ -173,9 +163,9 @@
       ; Ask cluster to remove it
       (let [contact (-> test :members deref (disj node) vec rand-nth)]
         (client/remap-errors
-          (client/with-client [c contact]
-            (info :removing node :via contact)
-            (client/remove-member! c node))))
+         (client/with-client [c contact]
+           (info :removing node :via contact)
+           (client/remove-member! c node))))
 
       ; Kill the node and wipe its data dir; otherwise we'll break the cluster
       ; when it restarts
@@ -189,6 +179,18 @@
       (swap! (:members test) disj node)
       node)))
 
+(defn install-xline-binary!
+  [version]
+  (c/exec :mkdir :-p dir)
+  (c/exec :mkdir :-p data-dir)
+  (let [url (str xline-download-url
+                 version
+                 "/xline-x86_64-unknown-linux-gnu")]
+    (c/cd dir
+          (cu/wget! url)
+          (c/exec :mv "xline-x86_64-unknown-linux-gnu" binary)
+          (c/exec :chmod :+x binary))))
+
 (defrecord DB [tcpdump lazyfs]
   db/DB
   (setup! [db test node]
@@ -197,11 +199,9 @@
 
     ; Install
     (let [version (:version test)]
-      (info node "installing etcd" version)
+      (info node "installing Xline" version)
       (c/su
-        (let [url (str "https://storage.googleapis.com/etcd/v" version
-                       "/etcd-v" version "-linux-amd64.tar.gz")]
-          (cu/install-archive! url dir))))
+       (install-xline-binary! version)))
 
     (when (:lazyfs test)
       (db/setup! (lazyfs node) test node))
@@ -225,7 +225,7 @@
   (teardown! [db test node]
     (when (:lazyfs test)
       (db/teardown! (lazyfs node) test node))
-    (info node "tearing down etcd")
+    (info node "tearing down Xline")
     (kill!)
     (c/su (c/exec :rm :-rf dir))
     (when (:tcpdump test)
@@ -236,7 +236,7 @@
     ; hack hack hack
     (meh (c/su (c/cd dir
                      (c/exec :tar :cjf "data.tar.bz2" (data-dir node)))))
-    (merge {logfile                   "etcd.log"
+    (merge {logfile                   "xline.log"
             (str dir "/data.tar.bz2") "data.tar.bz2"}
            (when (:tcpdump test) (db/log-files tcpdump test node))
            (when (:lazyfs test)  (db/log-files (lazyfs node) test node))))
@@ -246,12 +246,12 @@
 
   (primaries [_ test]
     (try+
-      (list (primary test))
-      (catch [:type :no-node-responded] e
-        [])
-      (catch [:type :jepsen.etcd.client/no-such-node] e
-        (warn e "Weird cluster state: unknown node ID, can't figure out what primary is right now")
-        [])))
+     (list (primary test))
+     (catch [:type :no-node-responded] e
+       [])
+     (catch [:type :jepsen.etcd.client/no-such-node] e
+       (warn e "Weird cluster state: unknown node ID, can't figure out what primary is right now")
+       [])))
 
   db/Process
   (start! [_ test node]
@@ -267,11 +267,11 @@
       (lazyfs/lose-unfsynced-writes! (lazyfs node))))
 
   db/Pause
-  (pause!  [_ test node] (c/su (cu/grepkill! :stop "etcd")))
-  (resume! [_ test node] (c/su (cu/grepkill! :cont "etcd"))))
+  (pause!  [_ test node] (c/su (cu/grepkill! :stop "xline")))
+  (resume! [_ test node] (c/su (cu/grepkill! :cont "xline"))))
 
 (defn db
-  "Etcd DB. Pulls version from test map's :version. Takes parsed CLI options."
+  "Xlien DB. Pulls version from test map's :version. Takes parsed CLI options."
   [opts]
   (map->DB {:tcpdump (db/tcpdump {:clients-only? true
                                   :ports [2379]})
