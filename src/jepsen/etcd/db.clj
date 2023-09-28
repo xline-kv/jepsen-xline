@@ -16,7 +16,7 @@
              [support :as s]]
             [slingshot.slingshot :refer [throw+ try+]]))
 
-(def xline-download-url "http://192.168.122.1:5000/") ; TODO: Replace this development URL to the repo asserts one
+(def xline-download-url "http://192.168.122.1:5000/")
 (def storage-engine "rocksdb")
 (def dir s/dir)
 (def binary "xline")
@@ -185,11 +185,14 @@
   (c/exec :mkdir :-p data-dir)
   (let [url (str xline-download-url
                  version
-                 "/xline-x86_64-unknown-linux-gnu")]
-    (c/cd dir
-          (cu/wget! url)
-          (c/exec :mv "xline-x86_64-unknown-linux-gnu" binary)
-          (c/exec :chmod :+x binary))))
+                 "/xline-x86_64-unknown-linux-gnu")
+        dest-binary (str dir "/" binary)
+        cache (cu/cached-wget! url)]
+    (info "downlaod cache: " cache)
+    (c/exec :cp
+            cache
+            dest-binary)
+    (c/exec :chmod :+x dest-binary)))
 
 (defrecord DB [tcpdump lazyfs]
   db/DB
