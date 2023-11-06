@@ -77,7 +77,8 @@
   {:none             []
    :corrupt          [:bitflip-wal :bitflip-snap :truncate-wal]
    :all              [:admin :pause :kill :bitflip-wal :bitflip-snap
-                      :truncate-wal :partition :clock :member]})
+                      :truncate-wal :partition :clock :member]
+   :xline-compatible [:admin :pause :partition :member :kill]})
 
 (defn parse-nemesis-spec
   "Takes a comma-separated nemesis string and returns a collection of keyword
@@ -108,7 +109,7 @@
                         :faults    (:nemesis opts)
                         :partition {:targets [:primaries :majority :majorities-ring]}
                         :pause     {:targets [:primaries :all]}
-                        :kill      {:targets [:primaries :all]}
+                        :kill      {:targets [:primaries :minority]}
                         :interval  (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
