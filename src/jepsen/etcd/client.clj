@@ -297,6 +297,12 @@
                   desc#   (.getDescription status#)]
                ; lmao, can't use a case statement here for ~reasons~
               (condp = (.getCode status#)
+                Status$Code/CANCELLED
+                {:definite? false, :type :timeout, :description desc#}
+
+                Status$Code/INTERNAL
+                {:definite? false, :type :timeout, :description desc#}
+
                 Status$Code/UNAVAILABLE
                 {:definite? false, :type :unavailable, :description desc#}
 
