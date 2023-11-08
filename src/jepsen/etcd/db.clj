@@ -22,6 +22,7 @@
 (def binary "xline")
 (def logfile (str dir "/xline.log"))
 (def pidfile (str dir "/xline.pid"))
+(def xline-log-dir "/var/log/xline")
 
 (defn data-dir
   "Where does this node store its data on disk?"
@@ -32,7 +33,9 @@
   "Wipes data files on the current node."
   [test node]
   (c/su
-   (c/exec :rm :-rf (str dir "/" node ".xline")))
+   (c/exec :rm :-rf (str dir "/" node ".xline"))
+   ; Also wipes xline logs
+   (c/exec :rm :-rf xline-log-dir))
   ; We don't want these files coming back when lazyfs loses unsynced writes
   (when (:lazyfs test)
     (-> test :db :lazyfs lazyfs/checkpoint!)))
@@ -230,7 +233,9 @@
       (db/teardown! (lazyfs node) test node))
     (info node "tearing down Xline")
     (kill!)
-    (c/su (c/exec :rm :-rf dir))
+    (c/su (c/exec :rm :-rf dir)
+          ; Also wipes xline logs
+          (c/exec :rm :-rf xline-log-dir))
     (when (:tcpdump test)
       (db/teardown! tcpdump test node)))
 
