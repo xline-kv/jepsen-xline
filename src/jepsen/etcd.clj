@@ -275,6 +275,7 @@
 (defn all-txns-dirs
   "Maps test start times to their directories."
   []
+  #_{:clj-kondo/ignore [:invalid-arity :unresolved-symbol]}
   (loopr [m (sorted-map)]
          [test (next (reverse (store/all-tests)))]
          (let [test @test

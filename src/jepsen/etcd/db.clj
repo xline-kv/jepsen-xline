@@ -47,6 +47,7 @@
   [test f]
   (let [rs (->> (:nodes test)
                 (real-pmap (fn [node]
+                             #_{:clj-kondo/ignore [:unresolved-symbol]}
                              (try+
                               (client/remap-errors
                                (client/with-client [c node] (f node c)))
@@ -136,6 +137,7 @@
       (info :adding new-node)
 
       ; Tell the cluster the new node is a part of it
+      #_{:clj-kondo/ignore [:unresolved-symbol]}
       (client/remap-errors
        (client/with-client [c (rand-nth (vec @(:members test)))]
          (client/add-member! c new-node)))
@@ -165,6 +167,7 @@
     (let [node (rand-nth (vec @(:members test)))]
       ; Ask cluster to remove it
       (let [contact (-> test :members deref (disj node) vec rand-nth)]
+        #_{:clj-kondo/ignore [:unresolved-symbol]}
         (client/remap-errors
          (client/with-client [c contact]
            (info :removing node :via contact)
@@ -253,6 +256,7 @@
   (setup-primary! [_ test node])
 
   (primaries [_ test]
+    #_{:clj-kondo/ignore [:unresolved-symbol]}
     (try+
      (list (primary test))
      (catch [:type :no-node-responded] e

@@ -4,13 +4,13 @@
   confirm that everyone observed all the writes in the correct order."
   (:require [clojure.tools.logging :refer [info warn]]
             [clojure [pprint :refer [pprint]]
-                     [string :as str]]
+             [string :as str]]
             [clj-diff.core :as diff]
             [knossos.op :as op]
             [jepsen [checker :as checker]
-                    [client :as client]
-                    [generator :as gen]
-                    [util :as util :refer [meh map-vals]]]
+             [client :as client]
+             [generator :as gen]
+             [util :as util :refer [meh map-vals]]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.etcd [client :as c]]
             [slingshot.slingshot :refer [throw+ try+]])
@@ -85,7 +85,7 @@
       (finally
         ; Let other threads know we've done some work and they can wake up
         (signal-converger-change! converger)))
-      nil))
+    nil))
 
 (defn converge!
   "Takes a timeout in ms, a converger, an initial value, and a function which
@@ -114,27 +114,27 @@
         (cond ; If we've crashed, throw a BrokenBarrierException. We're not
               ; really using a cyclic barrier, but this is *basically* a
               ; concurrency barrier, and it *is* broken.
-              (:crashed? c)
-              (throw (BrokenBarrierException. "Convergence failed"))
+          (:crashed? c)
+          (throw (BrokenBarrierException. "Convergence failed"))
 
               ; If the deadline has passed, throw a timeout with our value.
-              (< deadline (util/linear-time-nanos))
-              (throw+ {:type  ::converge-timeout
-                       :value (-> converger deref :values (get i))})
+          (< deadline (util/linear-time-nanos))
+          (throw+ {:type  ::converge-timeout
+                   :value (-> converger deref :values (get i))})
 
               ; If we're converged, return our value
-              (converged? c)
-              (-> converger deref :values (get i))
+          (converged? c)
+          (-> converger deref :values (get i))
 
               ; If we're divergent, evolve
-              (divergent? c)
-              (do (evolve! converger evolve init i)
-                  (recur))
+          (divergent? c)
+          (do (evolve! converger evolve init i)
+              (recur))
 
               ; Otherwise, wait for something to change
-              true
-              (do (await-converger-change converger)
-                  (recur)))))))
+          true
+          (do (await-converger-change converger)
+              (recur)))))))
 
 (defn watch
   "Watches key k from revision on, returning a deref-able which, when
@@ -241,30 +241,31 @@
           (assoc op :type :ok, :value res))
 
         :final-watch
+        #_{:clj-kondo/ignore [:unresolved-symbol]}
         (try+
-          (let [v (converge!
-                    60000
-                    converger
-                    {:revision @revision, :log []}
-                    (fn [v]
-                      (let [rev (:revision v)
-                            log (:log v)]
-                        (try+ (c/remap-errors
-                                (let [_ (info "at rev" rev "catching up to"
-                                              @max-revision)
-                                      w (watch-for conn (:process op) k rev
-                                                   (rand-int 5000))]
+         (let [v (converge!
+                  60000
+                  converger
+                  {:revision @revision, :log []}
+                  (fn [v]
+                    (let [rev (:revision v)
+                          log (:log v)]
+                      (try+ (c/remap-errors
+                             (let [_ (info "at rev" rev "catching up to"
+                                           @max-revision)
+                                   w (watch-for conn (:process op) k rev
+                                                (rand-int 5000))]
                                   ; Advance our revisions
-                                  (reset! revision (:revision w))
-                                  (swap! max-revision max (:revision w))
-                                  (assoc w :log (into (:log v) (:log w)))))
-                              (catch c/client-error? e
-                                (warn e "caught during final-watch; retrying")
-                                (Thread/sleep 1000)
-                                v)))))]
-            (assoc op :type :ok, :value v))
-          (catch [:type ::converge-timeout] e
-            (assoc op :type :ok, :value (:value e), :error [:converge-timeout]))))))
+                               (reset! revision (:revision w))
+                               (swap! max-revision max (:revision w))
+                               (assoc w :log (into (:log v) (:log w)))))
+                            (catch c/client-error? e
+                              (warn e "caught during final-watch; retrying")
+                              (Thread/sleep 1000)
+                              v)))))]
+           (assoc op :type :ok, :value v))
+         (catch [:type ::converge-timeout] e
+           (assoc op :type :ok, :value (:value e), :error [:converge-timeout]))))))
 
   (teardown! [this test])
 
@@ -375,5 +376,5 @@
                                watch))
      :final-generator (gen/reserve node-count nil
                                    (gen/each-thread
-                                     {:type :invoke
-                                      :f    :final-watch}))}))
+                                    {:type :invoke
+                                     :f    :final-watch}))}))

@@ -12,6 +12,7 @@
     (let [n 3
           c (converger n (fn [colls] (apply = (map peek colls))))
           vs (real-pmap (fn [i]
+                          #_{:clj-kondo/ignore [:invalid-arity]}
                           (converge! c [i] (fn [coll]
                                              (Thread/sleep (rand-int 2))
                                              (conj coll (rand-int 2)))))

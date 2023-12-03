@@ -659,6 +659,7 @@
 (defn await-node-ready
   "Blocks until this node is responding to queries."
   [client]
+  #_{:clj-kondo/ignore [:unresolved-symbol]}
   (or (try+ (remap-errors (-> client kv-client (.get (->bytes "foo") (get-options {})))
                           true)
             (catch client-error? e
