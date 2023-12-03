@@ -24,13 +24,13 @@
 
   (testing "exceptions"
     (is (thrown-with-msg?
-          RuntimeException #"^hi$"
-          (let [n 3
-                c (converger n (partial apply =))
+         RuntimeException #"^hi$"
+         (let [n 3
+               c (converger n (partial apply =))
                 ; One worker throws a RuntimeException
-                vs (real-pmap (fn [i]
-                                (Thread/sleep (rand-int 10))
-                                (if (= i 1)
-                                  (throw (RuntimeException. "hi"))
-                                  (rand-int 2)))
-                              (range n))])))))
+               vs (real-pmap (fn [i]
+                               (Thread/sleep (rand-int 10))
+                               (if (= i 1)
+                                 (throw (RuntimeException. "hi"))
+                                 (rand-int 2)))
+                             (range n))])))))

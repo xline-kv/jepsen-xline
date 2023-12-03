@@ -1,9 +1,9 @@
 (ns jepsen.etcd.set
   (:require [jepsen [client :as client]
-                    [checker :as checker]
-                    [generator :as gen]]
+             [checker :as checker]
+             [generator :as gen]]
             [jepsen.etcd [client :as c]
-                         [support :as s]]
+             [support :as s]]
             [slingshot.slingshot :refer [try+]]))
 
 (defrecord SetClient [k conn]

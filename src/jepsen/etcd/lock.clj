@@ -3,11 +3,11 @@
   (:require [clojure.tools.logging :refer [info warn]]
             [clojure.string :as str]
             [jepsen [core :as jc]
-                    [checker :as checker]
-                    [client :as client]
-                    [generator :as gen]
-                    [independent :as independent]
-                    [util :as util :refer [meh relative-time-nanos]]]
+             [checker :as checker]
+             [client :as client]
+             [generator :as gen]
+             [independent :as independent]
+             [util :as util :refer [meh relative-time-nanos]]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.etcd [client :as c]]
             [jepsen.etcd.client.txn :as t]
@@ -241,8 +241,8 @@
   {:client    (map->LinearizableLockClient {:lock-name       "foo"
                                             :lease+lock      nil})
    :checker   (checker/compose
-                {:linear   (checker/linearizable {:model (model/mutex)})
-                 :timeline (timeline/html)})
+               {:linear   (checker/linearizable {:model (model/mutex)})
+                :timeline (timeline/html)})
    :generator (gen/mix [acquires releases])})
 
 (defn set-workload
@@ -254,10 +254,10 @@
     {:client    (map->LockingSetClient {:lock-name    "foo"
                                         :latency      1000
                                         :set          (atom [])})
-    :checker    (checker/compose
+     :checker    (checker/compose
                   {:set (checker/set-full {:linearizable? true})
                    :timeline (timeline/html)})
-    :generator  (gen/mix [adds reads])}))
+     :generator  (gen/mix [adds reads])}))
 
 (defn etcd-set-workload
   "Tests mutating a set in etcd."

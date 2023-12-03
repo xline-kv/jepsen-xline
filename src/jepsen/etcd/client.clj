@@ -16,19 +16,16 @@
            (java.nio.charset Charset)
            (java.util.function Consumer)
            (io.etcd.jetcd ByteSequence
-                          Client
-                          ClientBuilder
                           Cluster
-                          KeyValue
-                          KV
                           Lease
                           Lock
                           Maintenance
-                          Response
                           Response$Header
                           Watch
-                          Watch$Listener
                           Watch$Watcher)
+           (cloud.xline.jxline Client
+                               KV
+                               KeyValue)
            (io.etcd.jetcd.common.exception ClosedClientException
                                            CompactedException
                                            EtcdException)
@@ -36,22 +33,20 @@
                                   MemberAddResponse
                                   MemberListResponse
                                   MemberRemoveResponse)
-           (io.etcd.jetcd.kv CompactResponse
-                             GetResponse
-                             PutResponse
-                             TxnResponse)
+           (cloud.xline.jxline.kv CompactResponse
+                                  GetResponse
+                                  PutResponse
+                                  TxnResponse)
            (io.etcd.jetcd.lease LeaseGrantResponse
                                 LeaseKeepAliveResponse
                                 LeaseRevokeResponse)
            (io.etcd.jetcd.lock LockResponse
                                UnlockResponse)
            (io.etcd.jetcd.maintenance StatusResponse)
-           (io.etcd.jetcd.op Cmp
-                             Cmp$Op
-                             CmpTarget
-                             Op
-                             Op$PutOp
-                             Op$GetOp)
+           (cloud.xline.jxline.op Cmp
+                                  Cmp$Op
+                                  CmpTarget
+                                  Op)
            (io.etcd.jetcd.options CompactOption
                                   GetOption
                                   PutOption
@@ -100,9 +95,7 @@
   [^ByteSequence bs]
   (codec/decode (.getBytes bs)))
 
-
 ; Coercing responses to Clojure data
-
 
 (defprotocol ToClj
   (->clj [o]))
@@ -205,9 +198,7 @@
                            {:response  (->clj (.getWatchResponse r))
                             :exception (.getException r)}))
 
-
 ; Opening and closing clients
-
 
 (defn ^Client client
   "Builds a client for the given node. If given a test map, chooses what kind
