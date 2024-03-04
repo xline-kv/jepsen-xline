@@ -12,12 +12,11 @@
                   ; jetcd pulls in so, SO many incompatible deps with itself
                   :exclusions [io.netty/netty-codec-http2
                                org.slf4j/slf4j-api
-                               io.netty/netty-handler-proxy
-                  ]]
+                               io.netty/netty-handler-proxy]]
+                 [cloud.xline/jxline-core "0.1.0-SNAPSHOT"]
                  [io.netty/netty-codec-http2 "4.1.78.Final"]
                  [io.netty/netty-handler-proxy "4.1.78.Final"]
-                 [cheshire "5.11.0"]
-                 ]
+                 [cheshire "5.11.0"]]
   :jvm-opts ["-Djava.awt.headless=true"
              "-server"
              "-Xmx24g"]
