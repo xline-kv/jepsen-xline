@@ -100,9 +100,7 @@
   [^ByteSequence bs]
   (codec/decode (.getBytes bs)))
 
-
 ; Coercing responses to Clojure data
-
 
 (defprotocol ToClj
   (->clj [o]))
@@ -205,9 +203,7 @@
                            {:response  (->clj (.getWatchResponse r))
                             :exception (.getException r)}))
 
-
 ; Opening and closing clients
-
 
 (defn ^Client client
   "Builds a client for the given node. If given a test map, chooses what kind

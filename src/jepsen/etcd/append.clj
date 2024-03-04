@@ -5,16 +5,16 @@
   (:refer-clojure :exclude [read])
   (:require [clojure.tools.logging :refer [info warn]]
             [jepsen [client :as client]
-                    [checker :as checker]
-                    [generator :as gen]
-                    [store :as store]
-                    [util :as util :refer [map-vals pprint-str]]]
+             [checker :as checker]
+             [generator :as gen]
+             [store :as store]
+             [util :as util :refer [map-vals pprint-str]]]
             [jepsen.tests.cycle :as cycle]
             [jepsen.tests.cycle.append :as append]
             [jepsen.etcd [client :as c]
-                         [support :as s]]
+             [support :as s]]
             [jepsen.etcd.client [etcdctl :as etcdctl]
-                                [txn :as t]]
+             [txn :as t]]
             [slingshot.slingshot :refer [try+]]))
 
 (defn preprocess
