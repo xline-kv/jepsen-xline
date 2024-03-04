@@ -2,12 +2,12 @@
   (:require [clojure.string :as str]
             [clojure.tools.logging :refer [info warn]]
             [jepsen [control :as c]
-                    [util :as util]]
+             [util :as util]]
             [jepsen.control [core :as c.core]
-                            [net :as c.net]]
+             [net :as c.net]]
             [slingshot.slingshot :refer [try+ throw+]]))
 
-(def dir "/opt/etcd")
+(def dir "/opt/xline")
 
 (defn node-url
   "An HTTP url for connecting to a node on a particular port."
@@ -17,7 +17,7 @@
 (defn peer-url
   "The HTTP url for other peers to talk to a node."
   [node]
-  (node-url node 2380))
+  (str node ":" 2379))
 
 (defn client-url
   "The HTTP url clients use to talk to a node."
@@ -46,13 +46,13 @@
                  (str/join " "))
         action {:cmd cmd, :in stdin}]
     (c/su
-      (-> action
-          c/wrap-cd
-          c/wrap-sudo
-          c/wrap-trace
-          c/ssh*
-          c.core/throw-on-nonzero-exit
-          c/just-stdout))))
+     (-> action
+         c/wrap-cd
+         c/wrap-sudo
+         c/wrap-trace
+         c/ssh*
+         c.core/throw-on-nonzero-exit
+         c/just-stdout))))
 
 (defn check-thread-leaks
   "Tries to ensure that no threads have leaked over from the previous
@@ -63,9 +63,9 @@
         (->> (Thread/getAllStackTraces)
              (keep (fn [[thread stacktrace]]
                      (let [classes (map #(.getClassName %) stacktrace)]
-                     (when (some (partial re-find #"net\.schmizz\.sshj")
-                                 classes)
-                       [thread classes])))))]
+                       (when (some (partial re-find #"net\.schmizz\.sshj")
+                                   classes)
+                         [thread classes])))))]
     (when (seq problems)
       (warn "Uh oh, bad threads!" (util/pprint-str problems))
       (throw+ {:type :sshj-thread-leak

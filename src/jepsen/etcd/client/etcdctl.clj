@@ -3,13 +3,13 @@
   given node. We encode values using pr-str to make things easier to debug,
   rather than bytes."
   (:require [clojure [edn :as edn]
-                     [string :as str]]
+             [string :as str]]
             [clojure.java.io :as io]
             [clojure.tools.logging :refer [info warn]]
             [cheshire.core :as json]
             [jepsen [control :as c]
-                    [store :as store]
-                    [util :as util :refer [coll]]]
+             [store :as store]
+             [util :as util :refer [coll]]]
             [jepsen.etcd [support :as support]]
             [jepsen.etcd.client.support :as s]
             [slingshot.slingshot :refer [try+ throw+]])
@@ -29,46 +29,47 @@
   given stdin and returning parsed JSON."
   [client cmd in]
   (util/timeout
-    5000 (throw+ {:type      :etcdctl-timeout,
-                  :definite? false})
-    (swap! (:active-threads client) conj (Thread/currentThread))
-    (try+ (let [res (c/with-session
-                      (:node client)
-                      (:session client)
-                      (support/etcdctl!
-                        [cmd
-                         :-w :json
-                         :--dial-timeout "1s"
-                         :--command-timeout "5s"]
-                        :in in))]
-            (json/parse-string res true))
+   5000 (throw+ {:type      :etcdctl-timeout,
+                 :definite? false})
+   (swap! (:active-threads client) conj (Thread/currentThread))
+   #_{:clj-kondo/ignore [:unresolved-symbol]}
+   (try+ (let [res (c/with-session
+                     (:node client)
+                     (:session client)
+                     (support/etcdctl!
+                      [cmd
+                       :-w :json
+                       :--dial-timeout "1s"
+                       :--command-timeout "5s"]
+                      :in in))]
+           (json/parse-string res true))
           ; Rewrite errors
-          (catch [:type :jepsen.control/nonzero-exit, :exit 1] e
-            (let [err (:err e)
+         (catch [:type :jepsen.control/nonzero-exit, :exit 1] e
+           (let [err (:err e)
                   ;_ (warn :caught err)
-                  first-msg (first (str/split-lines (:err e)))]
-              (if (re-find #"^\{" first-msg)
+                 first-msg (first (str/split-lines (:err e)))]
+             (if (re-find #"^\{" first-msg)
                 ; Maybe JSON?
-                (let [parsed (json/parse-string (:err e) true)
-                      error  (:error parsed)]
+               (let [parsed (json/parse-string (:err e) true)
+                     error  (:error parsed)]
                   ; They squirrel away the actual error message in an error
                   ; field--msg is often something useless like "retrying of
                   ; unary invoker failed"
                   ;(warn parsed)
-                  (throw+
-                    (condp re-find error
-                      #"duplicate key"
-                      {:definite? true, :type :duplicate-key, :description error}
+                 (throw+
+                  (condp re-find error
+                    #"duplicate key"
+                    {:definite? true, :type :duplicate-key, :description error}
 
-                      #"error reading from server: EOF"
-                      {:definite? false, :type :eof}
+                    #"error reading from server: EOF"
+                    {:definite? false, :type :eof}
 
-                      {:definite? false, :type :etcdtcl, :description error})))
+                    {:definite? false, :type :etcdtcl, :description error})))
 
                 ; Not JSON
-                (throw+ {:definite? false, :type :etcdctl, :description err}))))
-          (finally
-            (swap! (:active-threads client) disj (Thread/currentThread))))))
+               (throw+ {:definite? false, :type :etcdctl, :description err}))))
+         (finally
+           (swap! (:active-threads client) disj (Thread/currentThread))))))
 
 (defn parse-header
   "Interprets a header"
@@ -81,17 +82,17 @@
   "Interprets a KV response"
   [{:keys [key create_revision mod_revision version value]}]
   (clojure.lang.MapEntry.
-    (-> (Base64/getDecoder)
-            (.decode key)
-            String.
-            edn/read-string)
-    {:value (-> (Base64/getDecoder)
-                (.decode value)
-                String.
-                edn/read-string)
-     :version   version
-     :create-revision create_revision
-     :mod-revision mod_revision}))
+   (-> (Base64/getDecoder)
+       (.decode key)
+       String.
+       edn/read-string)
+   {:value (-> (Base64/getDecoder)
+               (.decode value)
+               String.
+               edn/read-string)
+    :version   version
+    :create-revision create_revision
+    :mod-revision mod_revision}))
 
 (defn parse-kvs
   "Interprets a series of KV responses"
@@ -129,40 +130,40 @@
   for the syntax here."
   [x]
   (cond ; Hope escaping is sufficient for our purposes; this is a quick hack
-        (string? x)
-        (pr-str x)
+    (string? x)
+    (pr-str x)
 
         ; Integers are encoded with double-quotes too? I guess?
-        (integer? x)
-        (str "\"" x "\"")
+    (integer? x)
+    (str "\"" x "\"")
 
-        (sequential? x)
-        (let [[type & args] x]
-          (case type
-            :txn (let [[pred t-branch f-branch] args]
-                   (str/join "\n"
-                             (concat (map txn->text pred)
-                                     [""]
-                                     (map txn->text t-branch)
-                                     [""]
-                                     (map txn->text f-branch)
-                                     ["\n"])))
+    (sequential? x)
+    (let [[type & args] x]
+      (case type
+        :txn (let [[pred t-branch f-branch] args]
+               (str/join "\n"
+                         (concat (map txn->text pred)
+                                 [""]
+                                 (map txn->text t-branch)
+                                 [""]
+                                 (map txn->text f-branch)
+                                 ["\n"])))
 
             ; arrrrgh they encode the syntax tree two incompatible ways between
             ; jetcd and the etcdctl text version. Our AST is [:< k [:mod 5]],
             ; but we have to spit out mod(k) < 5. Always put the mod (or other
             ; fun) first.
-            (:= :< :>)
-            (let [[k target] args
-                  [fun value] target]
-              (str (case fun
-                     :mod-revision "mod"
-                     :value        "val"
-                     :version      "ver")
-                   "(" (txn->text k) ") " (name type) " " (txn->text value)))
+        (:= :< :>)
+        (let [[k target] args
+              [fun value] target]
+          (str (case fun
+                 :mod-revision "mod"
+                 :value        "val"
+                 :version      "ver")
+               "(" (txn->text k) ") " (name type) " " (txn->text value)))
 
-            :put (str "put " (first args) " " (txn->text (pr-str (second args))))
-            :get (str "get " (first args))))))
+        :put (str "put " (first args) " " (txn->text (pr-str (second args))))
+        :get (str "get " (first args))))))
 
 (defprotocol Log
   (log [this msg]))
@@ -221,8 +222,8 @@
   [test node]
   (let [client-number (swap! client-number inc)]
     (map->EtcdctlClient
-      {:number client-number
-       :log     (io/writer (store/path! test log-dir (str client-number ".log")))
-       :node   node
-       :active-threads (atom #{})
-       :session        (c/session node)})))
+     {:number client-number
+      :log     (io/writer (store/path! test log-dir (str client-number ".log")))
+      :node   node
+      :active-threads (atom #{})
+      :session        (c/session node)})))

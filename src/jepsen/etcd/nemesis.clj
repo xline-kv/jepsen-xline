@@ -3,16 +3,16 @@
   (:require [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :refer [info warn]]
             [jepsen [control :as c]
-                    [nemesis :as n]
-                    [generator :as gen]
-                    [net :as net]
-                    [util :as util]]
+             [nemesis :as n]
+             [generator :as gen]
+             [net :as net]
+             [util :as util]]
             [jepsen.control [util :as cu]]
             [jepsen.nemesis [combined :as nc]
-                            [time :as nt]]
+             [time :as nt]]
             [jepsen.etcd [client :as client]
-                         [db :as db]
-                         [support :as s]]
+             [db :as db]
+             [support :as s]]
             [slingshot.slingshot :refer [try+ throw+]]))
 
 (defn member-nemesis
@@ -23,14 +23,15 @@
 
     (invoke! [this test op]
       (assoc op :value
+             #_{:clj-kondo/ignore [:unresolved-symbol]}
              (try+
-               (case (:f op)
-                 :grow     (db/grow! test)
-                 :shrink   (db/shrink! test))
-               (catch [:type :jepsen.etcd.db/blank-member-name] e
-                 :blank-member-name)
-               (catch [:type :unhealthy-cluster] e
-                 :unhealthy-cluster))))
+              (case (:f op)
+                :grow     (db/grow! test)
+                :shrink   (db/shrink! test))
+              (catch [:type :jepsen.etcd.db/blank-member-name] e
+                :blank-member-name)
+              (catch [:type :unhealthy-cluster] e
+                :unhealthy-cluster))))
 
     (teardown! [this test])
 
@@ -78,12 +79,13 @@
                        [node (client/client node)]))
                 (into {}))))
 
+  #_{:clj-kondo/ignore [:unresolved-symbol]}
   (invoke! [this test {:keys [f value] :as op}]
     (case f
       :compact
       (try+ (client/remap-errors
-              (let [r (client/compact! (rand-nth (vals clients)))]
-                (assoc op :value r)))
+             (let [r (client/compact! (rand-nth (vals clients)))]
+               (assoc op :value r)))
             (catch client/client-error? e
               (assoc op :value :compact-failed, :error e)))
 
@@ -92,12 +94,12 @@
                        (fn [_ _]
                          (info "Defragmenting")
                          (try+
-                           (s/etcdctl! :defrag)
-                           :defragged
-                           (catch [:exit 1] e
-                             (condp re-find (:err e)
-                               #"deadline exceeded" :deadline-exceeded
-                               (:err e))))))
+                          (s/etcdctl! :defrag)
+                          :defragged
+                          (catch [:exit 1] e
+                            (condp re-find (:err e)
+                              #"deadline exceeded" :deadline-exceeded
+                              (:err e))))))
            (assoc op :value))))
 
   (teardown! [this test]
@@ -153,7 +155,7 @@
     (get (c/on-nodes test [node]
                      (fn [_ _]
                        (c/su
-                         (rand-nth (cu/ls-full dir)))))
+                        (rand-nth (cu/ls-full dir)))))
          node)))
 
 (defn corrupt-generator
@@ -187,9 +189,9 @@
   "A nemesis package for datafile corruption"
   [opts]
   {:nemesis   (n/compose
-                {{:bitflip-wal :bitflip
-                  :bitflip-snap :bitflip}  (n/bitflip)
-                 {:truncate-wal :truncate} (n/truncate-file)})
+               {{:bitflip-wal :bitflip
+                 :bitflip-snap :bitflip}  (n/bitflip)
+                {:truncate-wal :truncate} (n/truncate-file)})
    :generator (->> (corrupt-generator opts)
                    (gen/stagger (:interval opts)))
    :perf      #{{:name "corrupt"

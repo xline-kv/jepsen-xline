@@ -3,9 +3,9 @@
   (:require [clojure.tools.logging :refer [info warn]]
             [clojure.string :as str]
             [jepsen [checker :as checker]
-                    [client :as client]
-                    [generator :as gen]
-                    [independent :as independent]]
+             [client :as client]
+             [generator :as gen]
+             [independent :as independent]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.etcd [client :as c]]
             [knossos.model :as model]
@@ -64,15 +64,15 @@
         :write (if (and (not (nil? op-version))
                         (not= version' op-version))
                  (model/inconsistent
-                   (str "can't go from version " version " to " op-version))
+                  (str "can't go from version " version " to " op-version))
                  (VersionedRegister. version' op-value))
 
         :cas   (let [[v v'] op-value]
                  (cond (and (not (nil? op-version))
                             (not= version' op-version))
                        (model/inconsistent
-                         (str "can't go from version " version " to "
-                              op-version))
+                        (str "can't go from version " version " to "
+                             op-version))
 
                        (not= value v)
                        (model/inconsistent (str "can't CAS " value " from " v
@@ -84,13 +84,13 @@
         :read (cond (and (not (nil? op-version))
                          (not= version op-version))
                     (model/inconsistent
-                      (str "can't read version " op-version " from version "
-                           version))
+                     (str "can't read version " op-version " from version "
+                          version))
 
                     (and (not (nil? op-value))
                          (not= value op-value))
                     (model/inconsistent
-                      (str "can't read " op-value " from register " value))
+                     (str "can't read " op-value " from register " value))
 
                     true
                     model)))))
@@ -106,14 +106,14 @@
   (let [n (count (:nodes opts))]
     {:client    (Client. nil)
      :checker   (independent/checker
-                  (checker/compose
-                    {:linear   (checker/linearizable
-                                 {:model (->VersionedRegister 0 nil)})
-                     :timeline (timeline/html)}))
+                 (checker/compose
+                  {:linear   (checker/linearizable
+                              {:model (->VersionedRegister 0 nil)})
+                   :timeline (timeline/html)}))
      :generator (independent/concurrent-generator
-                  (* 2 n)
-                  (range)
-                  (fn [k]
-                    (->> (gen/mix [w cas])
-                         (gen/reserve n r)
-                         (gen/limit (:ops-per-key opts)))))}))
+                 (* 2 n)
+                 (range)
+                 (fn [k]
+                   (->> (gen/mix [w cas])
+                        (gen/reserve n r)
+                        (gen/limit (:ops-per-key opts)))))}))

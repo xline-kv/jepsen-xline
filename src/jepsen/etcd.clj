@@ -4,29 +4,29 @@
             [clojure.pprint :refer [pprint]]
             [dom-top.core :refer [loopr]]
             [jepsen [checker :as checker]
-                    [cli :as cli]
-                    [client :as client]
-                    [core :as jepsen]
-                    [control :as c]
-                    [generator :as gen]
-                    [history :as h]
-                    [independent :as independent]
-                    [store :as store]
-                    [tests :as tests]
-                    [util :as util :refer [map-vals]]]
+             [cli :as cli]
+             [client :as client]
+             [core :as jepsen]
+             [control :as c]
+             [generator :as gen]
+             [history :as h]
+             [independent :as independent]
+             [store :as store]
+             [tests :as tests]
+             [util :as util :refer [map-vals]]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
             [jepsen.etcd [append :as append]
-                         [db :as db]
-                         [client :as ec]
-                         [lock :as lock]
-                         [nemesis :as nemesis]
-                         [register :as register]
-                         [set :as set]
-                         [support :as s]
-                         [watch :as watch]
-                         [wr :as wr]]
+             [db :as db]
+             [client :as ec]
+             [lock :as lock]
+             [nemesis :as nemesis]
+             [register :as register]
+             [set :as set]
+             [support :as s]
+             [watch :as watch]
+             [wr :as wr]]
             [knossos.model :as model]
             [slingshot.slingshot :refer [try+]]))
 
@@ -77,7 +77,8 @@
   {:none             []
    :corrupt          [:bitflip-wal :bitflip-snap :truncate-wal]
    :all              [:admin :pause :kill :bitflip-wal :bitflip-snap
-                      :truncate-wal :partition :clock :member]})
+                      :truncate-wal :partition :clock :member]
+   :xline-compatible [:admin :pause :partition :member :kill]})
 
 (defn parse-nemesis-spec
   "Takes a comma-separated nemesis string and returns a collection of keyword
@@ -103,21 +104,21 @@
         workload      ((workloads workload-name) opts)
         db            (db/db opts)
         nemesis       (nemesis/nemesis-package
-                        {:db        db
-                         :nodes     (:nodes opts)
-                         :faults    (:nemesis opts)
-                         :partition {:targets [:primaries :majority :majorities-ring]}
-                         :pause     {:targets [:primaries :all]}
-                         :kill      {:targets [:primaries :all]}
-                         :interval  (:nemesis-interval opts)})]
+                       {:db        db
+                        :nodes     (:nodes opts)
+                        :faults    (:nemesis opts)
+                        :partition {:targets [:primaries :majority :majorities-ring]}
+                        :pause     {:targets [:primaries :all]}
+                        :kill      {:targets [:primaries :minority]}
+                        :interval  (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
            {:name       (str "etcd " (:version opts)
                              " " (name workload-name)
                              " " (name (:client-type opts))
                              " " (str/join "," (map name (:nemesis opts)))
-                            (when (:lazyfs opts) " lazyfs")
-                            (when serializable " serializable"))
+                             (when (:lazyfs opts) " lazyfs")
+                             (when serializable " serializable"))
             :pure-generators true
             :serializable serializable
             :initialized? (atom false)
@@ -127,32 +128,32 @@
             :nemesis    (:nemesis nemesis)
             :checker
             (checker/compose
-              {:perf        (checker/perf {:nemeses (:perf nemesis)})
-               :clock       (checker/clock-plot)
-               :stats       (checker/stats)
-               :exceptions  (checker/unhandled-exceptions)
-               :crash       (checker/log-file-pattern
+             {:perf        (checker/perf {:nemeses (:perf nemesis)})
+              :clock       (checker/clock-plot)
+              :stats       (checker/stats)
+              :exceptions  (checker/unhandled-exceptions)
+              :crash       (checker/log-file-pattern
                               ; Ignore matches like "couldn't find local name
                               ; "n1" in initial cluster; we get these when we
                               ; restart nodes that don't belong in the group
                               ; due to membership changes.
-                              #"(\"level\":\"fatal|panic\"(?!.*couldn't find local name))|(panic:)|(^signal SIG)"
-                              "etcd.log")
-               :workload    (:checker workload)})
+                            #"(\"level\":\"fatal|panic\"(?!.*couldn't find local name))|(panic:)|(^signal SIG)"
+                            "etcd.log")
+              :workload    (:checker workload)})
             :client    (:client workload)
             :generator (gen/phases
-                         (->> (:generator workload)
-                              (gen/stagger (/ (:rate opts)))
-                              (gen/nemesis
-                                (gen/phases
-                                  (gen/sleep 5)
-                                  (:generator nemesis)))
-                              (gen/time-limit (:time-limit opts)))
-                         (gen/log "Healing cluster")
-                         (gen/nemesis (:final-generator nemesis))
-                         (gen/log "Waiting for recovery")
-                         (gen/sleep 10)
-                         (gen/clients (:final-generator workload)))})))
+                        (->> (:generator workload)
+                             (gen/stagger (/ (:rate opts)))
+                             (gen/nemesis
+                              (gen/phases
+                               (gen/sleep 5)
+                               (:generator nemesis)))
+                             (gen/time-limit (:time-limit opts)))
+                        (gen/log "Healing cluster")
+                        (gen/nemesis (:final-generator nemesis))
+                        (gen/log "Waiting for recovery")
+                        (gen/sleep 10)
+                        (gen/clients (:final-generator workload)))})))
 
 (def cli-opts
   "Additional command line options."
@@ -161,9 +162,9 @@
     :parse-fn keyword
     :validate [#{:etcdctl :jetcd} (cli/one-of #{:etcdctl :jetcd})]]
 
-    [nil "--corrupt-check" "If set, enables etcd's experimental corruption checking options"]
+   [nil "--corrupt-check" "If set, enables etcd's experimental corruption checking options"]
 
-      [nil "--debug" "If set, enables additional (somewhat expensive) debug logging; for instance, txn-list-append will includethe intermediate transactions it executes as a part of each operation."]
+   [nil "--debug" "If set, enables additional (somewhat expensive) debug logging; for instance, txn-list-append will includethe intermediate transactions it executes as a part of each operation."]
 
    [nil "--lazyfs" "Mounts etcd in a lazyfs, and causes the kill nemesis to also wipe our unfsynced data files."]
 
@@ -204,24 +205,20 @@
    [nil "--unsafe-no-fsync" "Asks etcd not to fsync."]
 
    ["-v" "--version STRING" "What version of etcd should we install?"
-    :default "3.5.6"]
-
-   ])
+    :default "v0.5.0"]])
 
 (def test-cli-opts
   "CLI options just for test"
-   [["-w" "--workload NAME" "What workload should we run?"
+  [["-w" "--workload NAME" "What workload should we run?"
     :default :append
     :parse-fn keyword
-    :validate [workloads (cli/one-of workloads)]]
-   ])
+    :validate [workloads (cli/one-of workloads)]]])
 
 (def test-all-cli-opts
   "CLI options just for test-all"
-   [["-w" "--workload NAME" "What workload should we run?"
+  [["-w" "--workload NAME" "What workload should we run?"
     :parse-fn keyword
-    :validate [workloads (cli/one-of workloads)]]
-   ])
+    :validate [workloads (cli/one-of workloads)]]])
 
 (defn all-test-options
   "Takes base cli options, a collection of nemeses, workloads, and a test count,
@@ -237,9 +234,9 @@
   [test-fn cli]
   (let [nemeses   (if-let [n (:nemesis cli)] [n]  all-nemeses)
         workloads (if-let [w (:workload cli)] [w]
-                    (if (:only-workloads-expected-to-pass cli)
-                      workloads-expected-to-pass
-                      all-workloads))]
+                          (if (:only-workloads-expected-to-pass cli)
+                            workloads-expected-to-pass
+                            all-workloads))]
     (->> (all-test-options cli nemeses workloads)
          (map test-fn))))
 
@@ -278,6 +275,7 @@
 (defn all-txns-dirs
   "Maps test start times to their directories."
   []
+  #_{:clj-kondo/ignore [:invalid-arity :unresolved-symbol]}
   (loopr [m (sorted-map)]
          [test (next (reverse (store/all-tests)))]
          (let [test @test

@@ -1,0 +1,28 @@
+name: CI
+on:
+  - push
+  - pull_request
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "11"
+
+      - name: Install clojure
+        uses: DeLaGuardo/setup-clojure@11.0
+        with:
+          cli: latest
+          lein: 2.9.10
+          bb: latest
+          clj-kondo: 2023.05.18
+          cljfmt: 0.10.4
+
+      - name: Format
+        run: cljfmt check
